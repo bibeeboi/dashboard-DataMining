@@ -371,7 +371,7 @@ with tab1:
                 height=200,
                 margin=dict(l=10, r=10, t=30, b=10),
                 title=dict(text=f"{meta['emoji']} {meta['label']}", font_size=12, font_color='#2d1f0f'),
-                xaxis_title=meta['unit'],
+                xaxis_title=dict(text=meta['unit'], font=dict(color='#2d1f0f', size=11)),
                 yaxis_title='',
                 showlegend=False,
                 plot_bgcolor='white',
@@ -703,7 +703,7 @@ with tab3:
     with col_radar:
         categories = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
         fig_radar = go.Figure()
-        model_colors = ['#1a7a1a', '#f59e0b', '#e11d48']
+        model_colors = ['#166534', '#92400e', '#881337']
         for i, row in df_metrics.iterrows():
             vals = [row[c] for c in categories]
             vals_closed = vals + [vals[0]]
@@ -713,7 +713,7 @@ with tab3:
                 fill='toself', name=row['Model'],
                 line_color=model_colors[i],
                 fillcolor=model_colors[i],
-                opacity=0.5,
+                opacity=0.75,
             ))
         fig_radar.update_layout(
             polar=dict(
