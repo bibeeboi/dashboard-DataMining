@@ -693,7 +693,12 @@ with tab3:
         df_display = df_metrics.copy()
         for col in ['Accuracy', 'Precision', 'Recall', 'F1-Score']:
             df_display[col] = df_display[col].map('{:.0%}'.format)
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        st.dataframe(
+            df_display,
+            use_container_width=True,
+            hide_index=True,
+            column_config={c: st.column_config.TextColumn(c) for c in df_display.columns}
+        )
 
     with col_radar:
         categories = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
@@ -710,15 +715,16 @@ with tab3:
                 fillcolor=model_colors[i],
                 opacity=0.5,
             ))
-        fig_radar.update_layout(
-            polar=dict(radialaxis=dict(range=[0.7, 0.95], tickformat='.0%')),
+       fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(range=[0.7, 0.95], tickformat='.0%', color='#2d1f0f'),
+                angularaxis=dict(color='#2d1f0f'),
+            ),
             height=280,
             margin=dict(l=20, r=20, t=20, b=20),
             paper_bgcolor='white',
-            font_family='Syne',
-            legend=dict(orientation='h', y=-0.1),
-            showlegend=True,
-        )
+            plot_bgcolor='white',
+            font=dict(family='Syne', color='#2d1f0f'),
         st.plotly_chart(fig_radar, use_container_width=True)
 
     # Feature importance DT all
@@ -739,17 +745,22 @@ with tab3:
         text=feat_imp_df['Importance'].map(lambda x: f'{x:.3f}'),
     )
     fig_imp.update_layout(
-        height=350,
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor='white',
-        font_family='Syne',
-        coloraxis_showscale=False,
-        xaxis_title='Importance Score',
-        yaxis_title='',
+            height=350,
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            font=dict(family='Syne', color='#2d1f0f'),
+            coloraxis_showscale=False,
+            xaxis_title='Importance Score',
+            yaxis_title='',
+        )
+        fig_imp.update_xaxes(color='#2d1f0f', tickfont=dict(color='#555'), gridcolor='#f0ece0')
+        fig_imp.update_yaxes(color='#2d1f0f', tickfont=dict(color='#2d1f0f'))
     )
+    
     fig_imp.update_traces(textposition='outside')
     st.plotly_chart(fig_imp, use_container_width=True)
-
+    
     # DT tree depth info
     with st.expander("ℹ️ Detail Hyperparameter Model"):
         c_a, c_b = st.columns(2)
