@@ -757,8 +757,8 @@ with tab3:
             xaxis_title='Importance Score',
             yaxis_title='',
         )
-        fig_imp.update_xaxes(color='#2d1f0f', tickfont=dict(color='#555'), gridcolor='#f0ece0')
-        fig_imp.update_yaxes(color='#2d1f0f', tickfont=dict(color='#2d1f0f'))
+    fig_imp.update_xaxes(color='#2d1f0f', tickfont=dict(color='#555'), gridcolor='#f0ece0')
+    fig_imp.update_yaxes(color='#2d1f0f', tickfont=dict(color='#2d1f0f'))
     )
     
     fig_imp.update_traces(textposition='outside')
