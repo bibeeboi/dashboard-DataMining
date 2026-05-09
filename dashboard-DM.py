@@ -525,7 +525,9 @@ with tab2:
 
         if predict_btn:
             try:
-                X_all = pd.DataFrame([{f: inputs[f] for f in ALL_FEATURES}])
+                full_inputs = {f: defaults[f] for f in ALL_FEATURES}
+                full_inputs.update(inputs) 
+                X_all = pd.DataFrame([{f: full_inputs[f] for f in ALL_FEATURES}])
                 if "Semua Fitur" in model_choice:
                     pred = dt_all.predict(X_all)[0]
                     proba = dt_all.predict_proba(X_all)[0]
@@ -539,7 +541,7 @@ with tab2:
                     classes = nb.classes_
                     model_name = "Naive Bayes + SMOTE"
                 else:
-                    X_rfe = pd.DataFrame([{f: inputs[f] for f in RFE_FEATURES}])
+                    X_rfe = pd.DataFrame([{f: full_inputs[f] for f in RFE_FEATURES}])
                     pred = dt_rfe.predict(X_rfe)[0]
                     proba = dt_rfe.predict_proba(X_rfe)[0]
                     classes = dt_rfe.classes_
