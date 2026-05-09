@@ -725,7 +725,7 @@ with tab3:
             paper_bgcolor='white',
             plot_bgcolor='white',
             font=dict(family='Syne', color='#2d1f0f'),
-            legend=dict(orientation='h', y=-0.1),
+            legend=dict(orientation='h', y=-0.1, font=dict(color='#2d1f0f', size=12)),
             showlegend=True,
         )
         st.plotly_chart(fig_radar, use_container_width=True)
