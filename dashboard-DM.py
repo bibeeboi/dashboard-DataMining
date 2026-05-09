@@ -304,9 +304,9 @@ FEATURE_META = {
 }
 
 COLORS = {
-    'High':   '#2e7d32',
-    'Medium': '#f57f17',
-    'Low':    '#c62828',
+    'High':   '#1a7a1a',
+    'Medium': '#e65c00',
+    'Low':    '#b00020',
 }
 
 # ─── HERO ─────────────────────────────────────────────────────────────────────
@@ -390,7 +390,7 @@ with tab1:
         corr = df[ALL_FEATURES].corr()
         fig_heat = px.imshow(
             corr,
-            color_continuous_scale=['#c62828', '#faf6ee', '#2e7d32'],
+            color_continuous_scale=['#b00020', '#f5f5f5', '#1a7a1a'],
             zmin=-1, zmax=1,
             text_auto='.2f',
             template='simple_white',
@@ -416,7 +416,7 @@ with tab1:
             sample, x='temperature', y='humidity',
             color='Yield_Cat',
             color_discrete_map=COLORS,
-            opacity=0.6,
+            opacity=0.75,
             template='simple_white',
             labels={'temperature': 'Suhu (°C)', 'humidity': 'Kelembaban (%)', 'Yield_Cat': 'Estimasi Yield'},
             title='🌡️ Suhu vs Kelembaban',
@@ -698,7 +698,7 @@ with tab3:
     with col_radar:
         categories = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
         fig_radar = go.Figure()
-        model_colors = ['#3d5a3e', '#6aaa64', '#f57f17']
+        model_colors = ['#1a7a1a', '#f59e0b', '#e11d48']
         for i, row in df_metrics.iterrows():
             vals = [row[c] for c in categories]
             vals_closed = vals + [vals[0]]
@@ -708,7 +708,7 @@ with tab3:
                 fill='toself', name=row['Model'],
                 line_color=model_colors[i],
                 fillcolor=model_colors[i],
-                opacity=0.3,
+                opacity=0.5,
             ))
         fig_radar.update_layout(
             polar=dict(radialaxis=dict(range=[0.7, 0.95], tickformat='.0%')),
