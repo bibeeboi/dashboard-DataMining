@@ -759,7 +759,6 @@ with tab3:
         )
     fig_imp.update_xaxes(color='#2d1f0f', tickfont=dict(color='#555'), gridcolor='#f0ece0')
     fig_imp.update_yaxes(color='#2d1f0f', tickfont=dict(color='#2d1f0f'))
-    )
     
     fig_imp.update_traces(textposition='outside')
     st.plotly_chart(fig_imp, use_container_width=True)
