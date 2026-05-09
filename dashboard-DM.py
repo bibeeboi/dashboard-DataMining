@@ -715,16 +715,19 @@ with tab3:
                 fillcolor=model_colors[i],
                 opacity=0.5,
             ))
-            fig_radar.update_layout(
-                polar=dict(
-                    radialaxis=dict(range=[0.7, 0.95], tickformat='.0%', color='#2d1f0f'),
-                    angularaxis=dict(color='#2d1f0f'),
-                ),
-                height=280,
-                margin=dict(l=20, r=20, t=20, b=20),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                font=dict(family='Syne', color='#2d1f0f'),
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(range=[0.7, 0.95], tickformat='.0%', color='#2d1f0f'),
+                angularaxis=dict(color='#2d1f0f'),
+            ),
+            height=280,
+            margin=dict(l=20, r=20, t=20, b=20),
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            font=dict(family='Syne', color='#2d1f0f'),
+            legend=dict(orientation='h', y=-0.1),
+            showlegend=True,
+        )
         st.plotly_chart(fig_radar, use_container_width=True)
 
     # Feature importance DT all
