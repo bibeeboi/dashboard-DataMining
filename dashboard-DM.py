@@ -890,11 +890,11 @@ with tab4:
                         colors_map = {'High': '#e8f5e9', 'Medium': '#fff8e1', 'Low': '#fce4ec'}
                         return f'background-color: {colors_map.get(val, "white")}'
                     
-                    st.dataframe(
-                        df_result.style.map(color_pred, subset=['Prediksi']),
-                        use_container_width=True,
-                        hide_index=True,
-                        height=260,
+                    if len(df_result) <= 5000:
+                        styled = df_result.style.map(color_pred, subset=['Prediksi'])
+                        st.dataframe(styled, use_container_width=True, hide_index=True, height=260)
+                    else:
+                        st.dataframe(df_result, use_container_width=True, hide_index=True, height=260)
                     )
 
                 # Download hasil
