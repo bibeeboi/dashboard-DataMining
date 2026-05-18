@@ -891,7 +891,7 @@ with tab4:
                         return f'background-color: {colors_map.get(val, "white")}'
                     
                     st.dataframe(
-                        df_result.style.applymap(color_pred, subset=['Prediksi']),
+                        df_result.style.map(color_pred, subset=['Prediksi']),
                         use_container_width=True,
                         hide_index=True,
                         height=260,
