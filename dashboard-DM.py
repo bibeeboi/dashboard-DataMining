@@ -895,7 +895,6 @@ with tab4:
                         st.dataframe(styled, use_container_width=True, hide_index=True, height=260)
                     else:
                         st.dataframe(df_result, use_container_width=True, hide_index=True, height=260)
-                    )
 
                 # Download hasil
                 csv_out = df_result.to_csv(index=False)
