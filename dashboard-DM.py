@@ -324,7 +324,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── TABS ─────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["📊  Overview Dataset", "🤖  Prediksi Yield", "🔬  Perbandingan Model"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊  Overview Dataset", "🤖  Prediksi Yield", "🔬  Perbandingan Model", "📂  Batch Prediksi"])
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TAB 1 — OVERVIEW
@@ -780,7 +780,134 @@ with tab3:
         - Criterion: `{dt_rfe.criterion}`
         - Classes: `{', '.join(dt_rfe.classes_)}`
         """)
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 4 — BATCH PREDIKSI
+# ════════════════════════════════════════════════════════════════════════════════
+with tab4:
+    st.markdown('<div class="sec-head">📂 Batch Prediksi dari CSV <div class="sec-line"></div></div>', unsafe_allow_html=True)
 
+    col_up, col_cfg = st.columns([1.2, 1])
+
+    with col_up:
+        st.markdown("**Format CSV yang dibutuhkan:**")
+        
+        batch_model = st.selectbox(
+            "Model untuk Batch Prediksi",
+            ["Decision Tree (Semua Fitur)", "Decision Tree (RFE — 5 Fitur)", "Naive Bayes + SMOTE"],
+            key="batch_model"
+        )
+        
+        if "RFE" in batch_model:
+            required_cols = RFE_FEATURES
+        else:
+            required_cols = ALL_FEATURES
+            
+        st.info(f"Kolom yang dibutuhkan: **{', '.join(required_cols)}**")
+        
+        # Template download
+        template_df = pd.DataFrame([{f: round(float(df[f].mean()), 2) for f in required_cols}])
+        csv_template = template_df.to_csv(index=False)
+        st.download_button(
+            "⬇️ Download Template CSV",
+            data=csv_template,
+            file_name="template_batch.csv",
+            mime="text/csv",
+        )
+
+        uploaded = st.file_uploader("Upload file CSV", type=["csv"], label_visibility="collapsed")
+
+    with col_cfg:
+        st.markdown("**Panduan:**")
+        st.markdown("""
+        <div style="background:white;border-radius:12px;padding:1.2rem;border:1.5px solid #e8dfc8;font-size:0.85rem;color:#444;">
+        1️⃣ Download template CSV dulu<br><br>
+        2️⃣ Isi data sesuai kolom yang tersedia<br><br>
+        3️⃣ Upload file CSV kamu<br><br>
+        4️⃣ Hasil prediksi langsung muncul & bisa di-download
+        </div>
+        """, unsafe_allow_html=True)
+
+    if uploaded is not None:
+        try:
+            df_batch = pd.read_csv(uploaded)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(f'<div class="sec-head">🔍 Hasil Prediksi — {len(df_batch)} baris <div class="sec-line"></div></div>', unsafe_allow_html=True)
+
+            # Validasi kolom
+            missing = [c for c in required_cols if c not in df_batch.columns]
+            if missing:
+                st.error(f"Kolom tidak lengkap: **{', '.join(missing)}**")
+            else:
+                # Prediksi
+                if "Semua Fitur" in batch_model:
+                    X_b = df_batch[ALL_FEATURES].fillna(df_batch[ALL_FEATURES].mean())
+                    preds = dt_all.predict(X_b)
+                    probas = dt_all.predict_proba(X_b)
+                    classes = dt_all.classes_
+                elif "Naive" in batch_model:
+                    X_b = df_batch[ALL_FEATURES].fillna(df_batch[ALL_FEATURES].mean())
+                    X_b_scaled = scaler.transform(X_b)
+                    preds = nb.predict(X_b_scaled)
+                    probas = nb.predict_proba(X_b_scaled)
+                    classes = nb.classes_
+                else:
+                    X_b = df_batch[RFE_FEATURES].fillna(df_batch[RFE_FEATURES].mean())
+                    preds = dt_rfe.predict(X_b)
+                    probas = dt_rfe.predict_proba(X_b)
+                    classes = dt_rfe.classes_
+
+                # Tambah hasil ke dataframe
+                df_result = df_batch.copy()
+                df_result['Prediksi'] = preds
+                for i, cls in enumerate(classes):
+                    df_result[f'Prob_{cls}'] = [round(p[i]*100, 1) for p in probas]
+
+                # Summary donut
+                col_sum, col_tbl = st.columns([1, 2])
+                with col_sum:
+                    counts = pd.Series(preds).value_counts()
+                    fig_donut = go.Figure(go.Pie(
+                        labels=counts.index,
+                        values=counts.values,
+                        hole=0.55,
+                        marker_colors=[COLORS.get(c, '#888') for c in counts.index],
+                        textinfo='label+percent',
+                        textfont=dict(color='#2d1f0f', size=12),
+                    ))
+                    fig_donut.update_layout(
+                        height=260,
+                        margin=dict(l=10, r=10, t=30, b=10),
+                        paper_bgcolor='white',
+                        showlegend=False,
+                        title=dict(text='Distribusi Hasil', font=dict(color='#2d1f0f', size=13)),
+                        font=dict(family='Syne', color='#2d1f0f'),
+                    )
+                    st.plotly_chart(fig_donut, use_container_width=True)
+
+                with col_tbl:
+                    # Color-code prediksi
+                    def color_pred(val):
+                        colors_map = {'High': '#e8f5e9', 'Medium': '#fff8e1', 'Low': '#fce4ec'}
+                        return f'background-color: {colors_map.get(val, "white")}'
+                    
+                    st.dataframe(
+                        df_result.style.applymap(color_pred, subset=['Prediksi']),
+                        use_container_width=True,
+                        hide_index=True,
+                        height=260,
+                    )
+
+                # Download hasil
+                csv_out = df_result.to_csv(index=False)
+                st.download_button(
+                    "⬇️ Download Hasil Prediksi CSV",
+                    data=csv_out,
+                    file_name="hasil_prediksi_batch.csv",
+                    mime="text/csv",
+                )
+
+        except Exception as e:
+            st.error(f"Error memproses file: {e}")
 # ─── FOOTER ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style="
