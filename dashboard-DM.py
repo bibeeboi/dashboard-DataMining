@@ -863,7 +863,9 @@ with tab4:
                     df_result[f'Prob_{cls}'] = [round(p[i]*100, 1) for p in probas]
 
                 # Summary donut
-                col_sum, col_tbl = st.columns([1, 2])
+               # ── RINGKASAN EKSEKUTIF ──
+                col_sum, col_stats = st.columns([1, 1])
+
                 with col_sum:
                     counts = pd.Series(preds).value_counts()
                     fig_donut = go.Figure(go.Pie(
@@ -879,27 +881,132 @@ with tab4:
                         margin=dict(l=10, r=10, t=30, b=10),
                         paper_bgcolor='white',
                         showlegend=False,
-                        title=dict(text='Distribusi Hasil', font=dict(color='#2d1f0f', size=13)),
+                        title=dict(text='Distribusi Kelas Yield', font=dict(color='#2d1f0f', size=13)),
                         font=dict(family='Syne', color='#2d1f0f'),
                     )
                     st.plotly_chart(fig_donut, use_container_width=True)
 
-                with col_tbl:
-                    # Color-code prediksi
-                    def color_pred(val):
-                        colors_map = {'High': '#e8f5e9', 'Medium': '#fff8e1', 'Low': '#fce4ec'}
-                        return f'background-color: {colors_map.get(val, "white")}'
-                    
-                    if len(df_result) <= 5000:
-                        styled = df_result.style.map(color_pred, subset=['Prediksi'])
-                        st.dataframe(styled, use_container_width=True, hide_index=True, height=260)
-                    else:
-                        st.dataframe(df_result, use_container_width=True, hide_index=True, height=260)
+                with col_stats:
+                    total = len(preds)
+                    for cls in classes:
+                        n = (preds == cls).sum()
+                        pct = n / total * 100
+                        color_map = {'High': '#e8f5e9', 'Medium': '#fff8e1', 'Low': '#fce4ec'}
+                        border_map = {'High': '#1a7a1a', 'Medium': '#e65c00', 'Low': '#b00020'}
+                        text_map = {'High': '#1a7a1a', 'Medium': '#e65c00', 'Low': '#b00020'}
+                        st.markdown(f"""
+                        <div style="background:{color_map.get(cls,'#f5f5f5')};border-left:4px solid {border_map.get(cls,'#888')};
+                            border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.6rem;">
+                          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#666;text-transform:uppercase">{cls} Yield</div>
+                          <div style="font-size:1.6rem;font-weight:800;color:{text_map.get(cls,'#333')};font-family:'DM Mono',monospace">{n:,} <span style="font-size:0.9rem">baris</span></div>
+                          <div style="font-size:0.8rem;color:#555">{pct:.1f}% dari total dataset</div>
+                        </div>""", unsafe_allow_html=True)
 
-                # Download hasil
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # ── ANALISIS PROBABILITAS ──
+                st.markdown('<div class="sec-head">📈 Analisis Confidence Prediksi <div class="sec-line"></div></div>', unsafe_allow_html=True)
+
+                col_conf1, col_conf2 = st.columns(2)
+
+                # Distribusi confidence per kelas
+                prob_df = pd.DataFrame(probas, columns=[f'Prob_{c}' for c in classes])
+                prob_df['Prediksi'] = preds
+
+                with col_conf1:
+                    # Rata-rata confidence per kelas prediksi
+                    avg_conf = []
+                    for cls in classes:
+                        mask = prob_df['Prediksi'] == cls
+                        if mask.sum() > 0:
+                            avg = prob_df.loc[mask, f'Prob_{cls}'].mean() * 100
+                            avg_conf.append({'Kelas': cls, 'Avg Confidence (%)': round(avg, 1)})
+                    
+                    df_conf = pd.DataFrame(avg_conf)
+                    fig_conf = px.bar(
+                        df_conf, x='Kelas', y='Avg Confidence (%)',
+                        color='Kelas',
+                        color_discrete_map=COLORS,
+                        template='simple_white',
+                        title='Rata-rata Confidence per Kelas',
+                        text='Avg Confidence (%)',
+                    )
+                    fig_conf.update_layout(
+                        height=250, margin=dict(l=10,r=10,t=40,b=10),
+                        paper_bgcolor='white', plot_bgcolor='white',
+                        font=dict(family='Syne', color='#2d1f0f'),
+                        showlegend=False,
+                        yaxis=dict(range=[0,110]),
+                        title_font=dict(size=12, color='#2d1f0f'),
+                    )
+                    fig_conf.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                    st.plotly_chart(fig_conf, use_container_width=True)
+
+                with col_conf2:
+                    # Confidence tinggi vs rendah
+                    max_prob = np.max(probas, axis=1)
+                    high_conf = (max_prob >= 0.8).sum()
+                    mid_conf = ((max_prob >= 0.6) & (max_prob < 0.8)).sum()
+                    low_conf = (max_prob < 0.6).sum()
+
+                    fig_cert = go.Figure(go.Bar(
+                        x=['≥80% (Tinggi)', '60–80% (Sedang)', '<60% (Rendah)'],
+                        y=[high_conf, mid_conf, low_conf],
+                        marker_color=['#1a7a1a', '#e65c00', '#b00020'],
+                        text=[f'{high_conf:,}', f'{mid_conf:,}', f'{low_conf:,}'],
+                        textposition='outside',
+                    ))
+                    fig_cert.update_layout(
+                        height=250, margin=dict(l=10,r=10,t=40,b=10),
+                        paper_bgcolor='white', plot_bgcolor='white',
+                        font=dict(family='Syne', color='#2d1f0f'),
+                        title=dict(text='Tingkat Kepercayaan Prediksi', font=dict(size=12, color='#2d1f0f')),
+                        yaxis=dict(gridcolor='#f0ece0'),
+                        showlegend=False,
+                    )
+                    fig_cert.update_xaxes(color='#2d1f0f')
+                    fig_cert.update_yaxes(color='#2d1f0f')
+                    st.plotly_chart(fig_cert, use_container_width=True)
+
+                # ── INSIGHT OTOMATIS ──
+                st.markdown('<div class="sec-head">💡 Insight Otomatis <div class="sec-line"></div></div>', unsafe_allow_html=True)
+
+                dominant = counts.idxmax()
+                dominant_pct = counts.max() / total * 100
+                high_conf_pct = high_conf / total * 100
+                
+                insights = []
+                insights.append(f"📌 Kelas **{dominant}** mendominasi hasil prediksi dengan **{dominant_pct:.1f}%** dari total {total:,} sampel.")
+                insights.append(f"✅ **{high_conf_pct:.1f}%** prediksi memiliki confidence ≥80% — model cukup yakin pada sebagian besar data.")
+                
+                if 'Low' in counts and counts.get('Low', 0) / total > 0.3:
+                    insights.append(f"⚠️ Proporsi kelas **Low** cukup tinggi ({counts.get('Low',0)/total*100:.1f}%) — perlu perhatian khusus pada kondisi lahan.")
+                if 'High' in counts and counts.get('High', 0) / total > 0.4:
+                    insights.append(f"🌾 Mayoritas lahan diprediksi **High yield** — kondisi dataset secara umum mendukung hasil panen baik.")
+                if low_conf / total > 0.2:
+                    insights.append(f"🔍 **{low_conf/total*100:.1f}%** prediksi memiliki confidence rendah (<60%) — data ini perlu diverifikasi lebih lanjut.")
+
+                for ins in insights:
+                    st.markdown(f"""
+                    <div style="background:white;border-radius:10px;padding:0.8rem 1.2rem;
+                        margin-bottom:0.5rem;border:1.5px solid #e8dfc8;font-size:0.87rem;color:#2d1f0f;">
+                        {ins}
+                    </div>""", unsafe_allow_html=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # ── TABEL SAMPEL ──
+                st.markdown('<div class="sec-head">🗂️ Sampel Hasil (50 baris pertama) <div class="sec-line"></div></div>', unsafe_allow_html=True)
+                df_result = df_batch.copy()
+                df_result['Prediksi'] = preds
+                for i, cls in enumerate(classes):
+                    df_result[f'Prob_{cls} (%)'] = [round(p[i]*100, 1) for p in probas]
+                st.dataframe(df_result.head(50), use_container_width=True, hide_index=True, height=280)
+
+                # Download
                 csv_out = df_result.to_csv(index=False)
                 st.download_button(
-                    "⬇️ Download Hasil Prediksi CSV",
+                    "⬇️ Download Hasil Lengkap CSV",
                     data=csv_out,
                     file_name="hasil_prediksi_batch.csv",
                     mime="text/csv",
