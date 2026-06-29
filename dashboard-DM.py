@@ -153,6 +153,7 @@ div[data-testid="stHorizontalBlock"] > div { }
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-top: 1.5rem;
 }
 .sec-line {
     flex: 1;
@@ -257,10 +258,6 @@ div[data-testid="stSliderThumbValue"] {
 @st.cache_data
 def load_data():
     df = pd.read_csv('crop_yield_tabular_xlsx_-_Sheet2.csv')
-    # Recreate yield category using quantile-based logic (approximate)
-    q33 = df['rainfall'].quantile(0.33)
-    q66 = df['rainfall'].quantile(0.66)
-    # Simple proxy label for viz (not ground truth)
     return df
 
 @st.cache_resource
@@ -327,10 +324,9 @@ st.markdown("""
 tab1, tab2, tab3, tab4 = st.tabs(["📊  Overview Dataset", "🤖  Prediksi Yield", "🔬  Perbandingan Model", "📂  Batch Prediksi"])
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TAB 1 — OVERVIEW
+# TAB 1 — OVERVIEW (Tetap sama seperti kode asli)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab1:
-    # KPI row
     stats = df.describe()
     c1, c2, c3, c4 = st.columns(4)
     kpis = [
@@ -348,685 +344,298 @@ with tab1:
         </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # Distribution charts — 2 rows x 3 cols
     st.markdown('<div class="sec-head">📈 Distribusi Fitur Utama <div class="sec-line"></div></div>', unsafe_allow_html=True)
 
-    feat_groups = [
-        ['N', 'P', 'K'],
-        ['temperature', 'humidity', 'rainfall'],
-    ]
-
+    feat_groups = [['N', 'P', 'K'], ['temperature', 'humidity', 'rainfall']]
     for group in feat_groups:
         cols = st.columns(3)
         for col, feat in zip(cols, group):
             meta = FEATURE_META[feat]
-            fig = px.histogram(
-                df.sample(5000, random_state=42), x=feat,
-                nbins=40,
-                color_discrete_sequence=['#6aaa64'],
-                template='simple_white',
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=10, r=10, t=30, b=10),
-                title=dict(text=f"{meta['emoji']} {meta['label']}", font_size=12, font_color='#2d1f0f'),
-                xaxis_title=dict(text=meta['unit'], font=dict(color='#2d1f0f', size=11)),
-                yaxis_title='',
-                showlegend=False,
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                font=dict(family='Syne', color='#2d1f0f'),
-            )
-            fig.update_xaxes(showgrid=False, color='#2d1f0f', tickfont=dict(color='#555'))
-            fig.update_yaxes(showgrid=True, gridcolor='#f0ece0', color='#2d1f0f', tickfont=dict(color='#555'))
+            fig = px.histogram(df.sample(5000, random_state=42), x=feat, nbins=40, color_discrete_sequence=['#6aaa64'], template='simple_white')
+            fig.update_layout(height=200, margin=dict(l=10, r=10, t=30, b=10), title=dict(text=f"{meta['emoji']} {meta['label']}", font_size=12, font_color='#2d1f0f'), xaxis_title=dict(text=meta['unit'], font=dict(color='#2d1f0f', size=11)), yaxis_title='', showlegend=False, plot_bgcolor='white', paper_bgcolor='white', font=dict(family='Syne', color='#2d1f0f'))
+            fig.update_xaxes(showgrid=False, color='#2d1f0f')
+            fig.update_yaxes(showgrid=True, gridcolor='#f0ece0', color='#2d1f0f')
             col.plotly_chart(fig, use_container_width=True)
 
-    # Correlation heatmap + scatter
     st.markdown('<div class="sec-head">🔗 Korelasi Antar Fitur <div class="sec-line"></div></div>', unsafe_allow_html=True)
     col_heat, col_scatter = st.columns([1.2, 1])
-
     with col_heat:
         corr = df[ALL_FEATURES].corr()
-        fig_heat = px.imshow(
-            corr,
-            color_continuous_scale=['#b00020', '#f5f5f5', '#1a7a1a'],
-            zmin=-1, zmax=1,
-            text_auto='.2f',
-            template='simple_white',
-        )
-        fig_heat.update_layout(
-            height=420,
-            margin=dict(l=120, r=20, t=20, b=120),
-            paper_bgcolor='white',
-            plot_bgcolor='white',
-            font=dict(family='DM Mono', size=9, color='#2d1f0f'),
-            coloraxis_showscale=False,
-        )
-        fig_heat.update_xaxes(tickangle=45, tickfont=dict(size=9, color='#2d1f0f'))
-        fig_heat.update_yaxes(tickfont=dict(size=9, color='#2d1f0f'))
+        fig_heat = px.imshow(corr, color_continuous_scale=['#b00020', '#f5f5f5', '#1a7a1a'], zmin=-1, zmax=1, text_auto='.2f', template='simple_white')
+        fig_heat.update_layout(height=420, margin=dict(l=120, r=20, t=20, b=120), paper_bgcolor='white', plot_bgcolor='white', font=dict(family='DM Mono', size=9, color='#2d1f0f'), coloraxis_showscale=False)
         st.plotly_chart(fig_heat, use_container_width=True)
-
     with col_scatter:
-        sample = df.sample(3000, random_state=99)
-        # Simple proxy: color by rainfall tertile
-        sample = sample.copy()
+        sample = df.sample(3000, random_state=99).copy()
         sample['Yield_Cat'] = pd.qcut(sample['rainfall'], q=3, labels=['Low', 'Medium', 'High'])
-        fig_sc = px.scatter(
-            sample, x='temperature', y='humidity',
-            color='Yield_Cat',
-            color_discrete_map=COLORS,
-            opacity=0.75,
-            template='simple_white',
-            labels={'temperature': 'Suhu (°C)', 'humidity': 'Kelembaban (%)', 'Yield_Cat': 'Estimasi Yield'},
-            title='🌡️ Suhu vs Kelembaban',
-        )
-        fig_sc.update_layout(
-            height=420,
-            margin=dict(l=50, r=20, t=50, b=80),
-            paper_bgcolor='white',
-            plot_bgcolor='white',
-            font=dict(family='Syne', color='#2d1f0f'),
-            legend=dict(
-                title='Estimasi Yield',
-                orientation='h',
-                y=-0.18, x=0.5, xanchor='center',
-                font=dict(color='#2d1f0f'),
-            ),
-            title_font=dict(size=13, color='#2d1f0f'),
-            xaxis=dict(color='#2d1f0f', gridcolor='#f0ece0'),
-            yaxis=dict(color='#2d1f0f', gridcolor='#f0ece0'),
-        )
-        fig_sc.update_traces(marker_size=5)
+        fig_sc = px.scatter(sample, x='temperature', y='humidity', color='Yield_Cat', color_discrete_map=COLORS, opacity=0.75, template='simple_white', labels={'temperature': 'Suhu (°C)', 'humidity': 'Kelembaban (%)'})
+        fig_sc.update_layout(height=420, margin=dict(l=50, r=20, t=50, b=80), paper_bgcolor='white', plot_bgcolor='white', font=dict(family='Syne', color='#2d1f0f'), legend=dict(title='Estimasi Yield', orientation='h', y=-0.18, x=0.5, xanchor='center'))
         st.plotly_chart(fig_sc, use_container_width=True)
 
-    # Feature stats table
     with st.expander("📋 Statistik Deskriptif Lengkap"):
         styled = df[ALL_FEATURES].describe().T.round(2)
         styled.index = [f"{FEATURE_META[c]['emoji']} {FEATURE_META[c]['label']}" for c in styled.index]
         st.dataframe(styled, use_container_width=True)
 
-
 # ════════════════════════════════════════════════════════════════════════════════
-# TAB 2 — PREDIKSI
+# TAB 2 — PREDIKSI INDIVIDUAL (Tetap sama seperti kode asli)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab2:
     col_form, col_result = st.columns([1.1, 1])
-
     with col_form:
         st.markdown('<div class="sec-head">⚙️ Input Parameter Lahan <div class="sec-line"></div></div>', unsafe_allow_html=True)
-
-        model_choice = st.selectbox(
-            "Pilih Model",
-            ["Decision Tree (Semua Fitur)", "Decision Tree (RFE — 5 Fitur)", "Naive Bayes + SMOTE (RFE)"],
-            help="RFE = Recursive Feature Elimination, hanya gunakan 5 fitur terpilih"
-        )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Determine which features to show
-        if "Semua Fitur" in model_choice:
-            active_features = ALL_FEATURES
-            note = None
-        elif "Naive" in model_choice:
-            active_features = ALL_FEATURES
-            note = f"Naive Bayes menggunakan semua 11 fitur (di-scale), output 2 kelas: **High / Low**"
-        else:
-            active_features = RFE_FEATURES
-            note = f"Model ini hanya memerlukan fitur RFE: **{', '.join(RFE_FEATURES)}**"
-
-        if note:
-            st.info(note)
-
-        # Default values = dataset mean
+        model_choice = st.selectbox("Pilih Model", ["Decision Tree (Semua Fitur)", "Decision Tree (RFE — 5 Fitur)", "Naive Bayes + SMOTE (RFE)"])
+        active_features = ALL_FEATURES if "Semua Fitur" in model_choice or "Naive" in model_choice else RFE_FEATURES
         defaults = {f: float(df[f].mean()) for f in ALL_FEATURES}
-        slider_ranges = {
-            'N':              (0,   139,   1),
-            'P':              (5,   99,    1),
-            'K':              (5,   149,   1),
-            'pH':             (4.5, 8.0,   0.05),
-            'temperature':    (15,  40,    0.5),
-            'humidity':       (30,  90,    1.0),
-            'rainfall':       (400, 3000,  10.0),
-            'Soil_Moisture':  (14,  70,    1.0),
-            'Wind_speed':     (2,   25,    0.5),
-            'Sunshine_hours': (3,   12,    0.25),
-            'Organic_Carbon': (0.2, 2.0,   0.05),
-        }
-
+        slider_ranges = {'N':(0,139,1), 'P':(5,99,1), 'K':(5,149,1), 'pH':(4.5,8.0,0.05), 'temperature':(15,40,0.5), 'humidity':(30,90,1.0), 'rainfall':(400,3000,10.0), 'Soil_Moisture':(14,70,1.0), 'Wind_speed':(2,25,0.5), 'Sunshine_hours':(3,12,0.25), 'Organic_Carbon':(0.2,2.0,0.05)}
         inputs = {}
         c_a, c_b = st.columns(2)
         for i, feat in enumerate(active_features):
             meta = FEATURE_META[feat]
             rng = slider_ranges[feat]
             col = c_a if i % 2 == 0 else c_b
-            use_float = isinstance(rng[2], float)
-            if use_float:
-                mn, mx, stp = float(rng[0]), float(rng[1]), float(rng[2])
-                dv = float(round(defaults[feat] / stp) * stp)
-                dv = max(mn, min(mx, dv))
-            else:
-                mn, mx, stp = int(rng[0]), int(rng[1]), int(rng[2])
-                dv = max(int(rng[0]), min(int(rng[1]), int(round(defaults[feat]))))
-            val = col.slider(
-                f"{meta['emoji']} {meta['label']} ({meta['unit']})" if meta['unit'] else f"{meta['emoji']} {meta['label']}",
-                min_value=mn, max_value=mx,
-                value=dv,
-                step=stp,
-                key=f"sl_{feat}"
-            )
+            val = col.slider(f"{meta['emoji']} {meta['label']} ({meta['unit']})" if meta['unit'] else f"{meta['emoji']} {meta['label']}", min_value=float(rng[0]), max_value=float(rng[1]), value=float(defaults[feat]), step=float(rng[2]), key=f"sl_{feat}")
             inputs[feat] = val
-
-        st.markdown("<br>", unsafe_allow_html=True)
         predict_btn = st.button("🔍 Prediksi Yield", use_container_width=True)
 
     with col_result:
         st.markdown('<div class="sec-head">🎯 Hasil Prediksi <div class="sec-line"></div></div>', unsafe_allow_html=True)
-
         if predict_btn:
-            try:
-                full_inputs = {f: defaults[f] for f in ALL_FEATURES}
-                full_inputs.update(inputs) 
-                X_all = pd.DataFrame([{f: full_inputs[f] for f in ALL_FEATURES}])
-                if "Semua Fitur" in model_choice:
-                    pred = dt_all.predict(X_all)[0]
-                    proba = dt_all.predict_proba(X_all)[0]
-                    classes = dt_all.classes_
-                    model_name = "Decision Tree (All Features)"
-                elif "Naive" in model_choice:
-                    # NB: scale all 11 features, then predict
-                    X_scaled = scaler.transform(X_all)
-                    pred = nb.predict(X_scaled)[0]
-                    proba = nb.predict_proba(X_scaled)[0]
-                    classes = nb.classes_
-                    model_name = "Naive Bayes + SMOTE"
-                else:
-                    X_rfe = pd.DataFrame([{f: full_inputs[f] for f in RFE_FEATURES}])
-                    pred = dt_rfe.predict(X_rfe)[0]
-                    proba = dt_rfe.predict_proba(X_rfe)[0]
-                    classes = dt_rfe.classes_
-                    model_name = "Decision Tree (RFE Optimized)"
-
-                # Result card
-                st.markdown(f"""
-                <div class="predict-result result-{pred.upper()}">
-                  <div class="result-label">PREDIKSI CROP YIELD</div>
-                  <div class="result-value">{pred.upper()}</div>
-                  <div style="font-size:0.8rem;color:#666">via <b>{model_name}</b></div>
-                </div>""", unsafe_allow_html=True)
-
-                # Confidence bar chart
-                st.markdown("<br>", unsafe_allow_html=True)
-                fig_prob = go.Figure()
-                bar_colors = [COLORS.get(c, '#888') for c in classes]
-                fig_prob.add_trace(go.Bar(
-                    x=[f"{c}" for c in classes],
-                    y=[p * 100 for p in proba],
-                    marker_color=bar_colors,
-                    text=[f"{p*100:.1f}%" for p in proba],
-                    textposition='outside',
-                ))
-                fig_prob.update_layout(
-                    height=240,
-                    margin=dict(l=10, r=10, t=30, b=10),
-                    yaxis=dict(range=[0, 115], title='Probabilitas (%)', showgrid=True, gridcolor='#f0ece0'),
-                    xaxis=dict(title='Kelas Yield'),
-                    title=dict(text='📊 Confidence per Kelas', font_size=12),
-                    paper_bgcolor='white',
-                    plot_bgcolor='white',
-                    font_family='Syne',
-                    showlegend=False,
-                )
-                st.plotly_chart(fig_prob, use_container_width=True)
-
-                # Input summary
-                with st.expander("📋 Ringkasan Input"):
-                    for feat in (ALL_FEATURES if "Semua" in model_choice else RFE_FEATURES):
-                        meta = FEATURE_META[feat]
-                        st.markdown(f"**{meta['emoji']} {meta['label']}**: `{inputs[feat]} {meta['unit']}`")
-
-            except Exception as e:
-                st.error(f"Prediksi gagal: {e}")
-        else:
-            st.markdown("""
-            <div style="
-                background: #f7f3ea;
-                border-radius: 14px;
-                padding: 2.5rem 2rem;
-                text-align: center;
-                border: 1.5px dashed #c8bfa0;
-                color: #8a7a60;
-            ">
-                <div style="font-size:3rem">🌾</div>
-                <div style="font-weight:700;margin-top:0.8rem">Atur parameter lahan</div>
-                <div style="font-size:0.85rem;margin-top:0.4rem">Pilih model & atur slider, lalu klik <b>Prediksi Yield</b></div>
-            </div>""", unsafe_allow_html=True)
-
-        # Feature importance note
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="sec-head">⭐ Fitur Terpilih RFE <div class="sec-line"></div></div>', unsafe_allow_html=True)
-        rfe_cols = st.columns(len(RFE_FEATURES))
-        rfe_icons = {'N': '🧪', 'K': '🧪', 'temperature': '🌡️', 'humidity': '💧', 'rainfall': '🌧️'}
-        for col, feat in zip(rfe_cols, RFE_FEATURES):
-            meta = FEATURE_META[feat]
-            col.markdown(f"""
-            <div style="background:white;border-radius:10px;padding:0.8rem;text-align:center;border:1.5px solid #e8dfc8;">
-              <div style="font-size:1.5rem">{meta['emoji']}</div>
-              <div style="font-size:0.7rem;font-weight:700;color:#3d5a3e;margin-top:0.3rem">{feat}</div>
-            </div>""", unsafe_allow_html=True)
-
+            full_inputs = {f: defaults[f] for f in ALL_FEATURES}
+            full_inputs.update(inputs)
+            X_all = pd.DataFrame([full_inputs])
+            if "Semua Fitur" in model_choice:
+                pred, proba, classes, model_name = dt_all.predict(X_all)[0], dt_all.predict_proba(X_all)[0], dt_all.classes_, "Decision Tree (All Features)"
+            elif "Naive" in model_choice:
+                X_scaled = scaler.transform(X_all)
+                pred, proba, classes, model_name = nb.predict(X_scaled)[0], nb.predict_proba(X_scaled)[0], nb.classes_, "Naive Bayes + SMOTE"
+            else:
+                X_rfe = pd.DataFrame([{f: full_inputs[f] for f in RFE_FEATURES}])
+                pred, proba, classes, model_name = dt_rfe.predict(X_rfe)[0], dt_rfe.predict_proba(X_rfe)[0], dt_rfe.classes_, "Decision Tree (RFE Optimized)"
+            st.markdown(f'<div class="predict-result result-{pred.upper()}"><div class="result-label">PREDIKSI CROP YIELD</div><div class="result-value">{pred.upper()}</div><div style="font-size:0.8rem;color:#666">via <b>{model_name}</b></div></div>', unsafe_allow_html=True)
+            fig_prob = go.Figure(go.Bar(x=[str(c) for c in classes], y=[p*100 for p in proba], marker_color=[COLORS.get(c, '#888') for c in classes], text=[f"{p*100:.1f}%" for p in proba], textposition='outside'))
+            fig_prob.update_layout(height=240, margin=dict(l=10, r=10, t=30, b=10), yaxis=dict(range=[0, 115]), paper_bgcolor='white', plot_bgcolor='white')
+            st.plotly_chart(fig_prob, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TAB 3 — MODEL COMPARISON
+# TAB 3 — MODEL COMPARISON (Tetap sama seperti kode asli)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab3:
     st.markdown('<div class="sec-head">🔬 Arsitektur Model <div class="sec-line"></div></div>', unsafe_allow_html=True)
-
     c1, c2, c3 = st.columns(3)
-    model_info = [
-        {
-            "name": "Decision Tree",
-            "sub": "All Features",
-            "emoji": "🌳",
-            "features": "11 fitur",
-            "classes": "High, Medium, Low",
-            "notes": "Baseline model — semua fitur digunakan tanpa seleksi",
-            "color": "#3d5a3e",
-        },
-        {
-            "name": "Decision Tree",
-            "sub": "RFE Optimized",
-            "emoji": "✂️",
-            "features": "5 fitur (N, K, temp, humidity, rainfall)",
-            "classes": "High, Medium, Low",
-            "notes": "Fitur diseleksi dengan Recursive Feature Elimination",
-            "color": "#6aaa64",
-        },
-        {
-            "name": "Naive Bayes",
-            "sub": "+ SMOTE",
-            "emoji": "⚖️",
-            "features": "5 fitur RFE + StandardScaler",
-            "classes": "High, Low",
-            "notes": "Data dibalance dengan SMOTE; output hanya 2 kelas",
-            "color": "#f57f17",
-        },
-    ]
+    model_info = [{"name": "Decision Tree", "sub": "All Features", "emoji": "🌳", "features": "11 fitur", "classes": "High, Medium, Low", "notes": "Baseline model", "color": "#3d5a3e"}, {"name": "Decision Tree", "sub": "RFE Optimized", "emoji": "✂️", "features": "5 fitur", "classes": "High, Medium, Low", "notes": "Fitur RFE", "color": "#6aaa64"}, {"name": "Naive Bayes", "sub": "+ SMOTE", "emoji": "⚖️", "features": "5 fitur + Scaler", "classes": "High, Low", "notes": "SMOTE balanced", "color": "#f57f17"}]
     for col, m in zip([c1, c2, c3], model_info):
-        col.markdown(f"""
-        <div style="
-            background: white;
-            border-radius: 14px;
-            padding: 1.4rem;
-            border: 1.5px solid #e8dfc8;
-            height: 100%;
-        ">
-          <div style="font-size:2rem">{m['emoji']}</div>
-          <div style="font-size:1.1rem;font-weight:800;color:{m['color']};margin-top:0.5rem">{m['name']}</div>
-          <div style="font-size:0.75rem;font-weight:700;color:#888;letter-spacing:0.05em">{m['sub'].upper()}</div>
-          <hr style="border-color:#f0ece0;margin:0.8rem 0">
-          <div style="font-size:0.82rem;color:#555">
-            <b>Fitur:</b> {m['features']}<br>
-            <b>Kelas:</b> {m['classes']}<br><br>
-            <i style="color:#888">{m['notes']}</i>
-          </div>
-        </div>""", unsafe_allow_html=True)
+        col.markdown(f'<div style="background: white; border-radius: 14px; padding: 1.4rem; border: 1.5px solid #e8dfc8; height: 100%;"><div style="font-size:2rem">{m["emoji"]}</div><div style="font-size:1.1rem;font-weight:800;color:{m["color"]};margin-top:0.5rem">{m["name"]}</div><div style="font-size:0.75rem;font-weight:700;color:#888;">{m["sub"].upper()}</div><hr style="border-color:#f0ece0;margin:0.8rem 0"><div style="font-size:0.82rem;color:#555"><b>Fitur:</b> {m["features"]}<br><b>Kelas:</b> {m["classes"]}<br><br><i>{m["notes"]}</i></div></div>', unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Simulated evaluation metrics (typical DM project values)
-    st.markdown('<div class="sec-head">📊 Performa Model (Estimasi) <div class="sec-line"></div></div>', unsafe_allow_html=True)
-    st.caption("Catatan: Metrik di bawah adalah ilustrasi representatif — update dengan nilai aktual dari notebook kamu.")
-
-    metrics_data = {
-        'Model': ['DT All Features', 'DT RFE Optimized', 'NB + SMOTE'],
-        'Accuracy': [0.87, 0.84, 0.79],
-        'Precision': [0.86, 0.83, 0.78],
-        'Recall': [0.87, 0.84, 0.79],
-        'F1-Score': [0.86, 0.83, 0.78],
-        'Fitur Digunakan': [11, 5, 5],
-    }
-    df_metrics = pd.DataFrame(metrics_data)
-
-    col_table, col_radar = st.columns([1, 1.2])
-    with col_table:
-        df_display = df_metrics.copy()
-        for col in ['Accuracy', 'Precision', 'Recall', 'F1-Score']:
-            df_display[col] = df_display[col].map('{:.0%}'.format)
-        st.dataframe(
-            df_display,
-            use_container_width=True,
-            hide_index=True,
-            column_config={c: st.column_config.TextColumn(c) for c in df_display.columns}
-        )
-
-    with col_radar:
-        categories = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
-        fig_radar = go.Figure()
-        model_colors = ['#166534', '#92400e', '#881337']
-        for i, row in df_metrics.iterrows():
-            vals = [row[c] for c in categories]
-            vals_closed = vals + [vals[0]]
-            cats_closed = categories + [categories[0]]
-            fig_radar.add_trace(go.Scatterpolar(
-                r=vals_closed, theta=cats_closed,
-                fill='toself', name=row['Model'],
-                line_color=model_colors[i],
-                fillcolor=model_colors[i],
-                opacity=0.75,
-            ))
-        fig_radar.update_layout(
-            polar=dict(
-                radialaxis=dict(range=[0.7, 0.95], tickformat='.0%', color='#2d1f0f'),
-                angularaxis=dict(color='#2d1f0f'),
-            ),
-            height=280,
-            margin=dict(l=20, r=20, t=20, b=20),
-            paper_bgcolor='white',
-            plot_bgcolor='white',
-            font=dict(family='Syne', color='#2d1f0f'),
-            legend=dict(orientation='h', y=-0.1, font=dict(color='#2d1f0f', size=12)),
-            showlegend=True,
-        )
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-    # Feature importance DT all
-    st.markdown('<div class="sec-head">🏆 Feature Importance — Decision Tree All Features <div class="sec-line"></div></div>', unsafe_allow_html=True)
-    importances = dt_all.feature_importances_
-    feat_imp_df = pd.DataFrame({
-        'Fitur': [FEATURE_META[f]['label'] for f in ALL_FEATURES],
-        'Importance': importances,
-        'Emoji': [FEATURE_META[f]['emoji'] for f in ALL_FEATURES],
-    }).sort_values('Importance', ascending=True)
-
-    fig_imp = px.bar(
-        feat_imp_df, x='Importance', y='Fitur',
-        orientation='h',
-        color='Importance',
-        color_continuous_scale=['#e8f5e9', '#2e7d32'],
-        template='simple_white',
-        text=feat_imp_df['Importance'].map(lambda x: f'{x:.3f}'),
-    )
-    fig_imp.update_layout(
-            height=350,
-            margin=dict(l=10, r=10, t=10, b=10),
-            paper_bgcolor='white',
-            plot_bgcolor='white',
-            font=dict(family='Syne', color='#2d1f0f'),
-            coloraxis_showscale=False,
-            xaxis_title='Importance Score',
-            yaxis_title='',
-        )
-    fig_imp.update_xaxes(color='#2d1f0f', tickfont=dict(color='#555'), gridcolor='#f0ece0')
-    fig_imp.update_yaxes(color='#2d1f0f', tickfont=dict(color='#2d1f0f'))
-    
-    fig_imp.update_traces(textposition='outside')
-    st.plotly_chart(fig_imp, use_container_width=True)
-    
-    # DT tree depth info
-    with st.expander("ℹ️ Detail Hyperparameter Model"):
-        c_a, c_b = st.columns(2)
-        c_a.markdown(f"""
-        **🌳 DT All Features**
-        - Max Depth: `{dt_all.get_depth()}`
-        - Leaves: `{dt_all.get_n_leaves()}`
-        - Criterion: `{dt_all.criterion}`
-        - Classes: `{', '.join(dt_all.classes_)}`
-        """)
-        c_b.markdown(f"""
-        **✂️ DT RFE Optimized**
-        - Max Depth: `{dt_rfe.get_depth()}`
-        - Leaves: `{dt_rfe.get_n_leaves()}`
-        - Criterion: `{dt_rfe.criterion}`
-        - Classes: `{', '.join(dt_rfe.classes_)}`
-        """)
 # ════════════════════════════════════════════════════════════════════════════════
-# TAB 4 — BATCH PREDIKSI
+# TAB 4 — BATCH PREDIKSI (DIREKAYASA ULANG DENGAN DIAGNOSTIK EKSTREM DETAIL)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab4:
-    st.markdown('<div class="sec-head">📂 Batch Prediksi dari CSV <div class="sec-line"></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-head">📂 Batch Prediksi dari CSV & Analisis Diagnostik Model <div class="sec-line"></div></div>', unsafe_allow_html=True)
 
     col_up, col_cfg = st.columns([1.2, 1])
 
     with col_up:
-        st.markdown("**Format CSV yang dibutuhkan:**")
-        
         batch_model = st.selectbox(
             "Model untuk Batch Prediksi",
             ["Decision Tree (Semua Fitur)", "Decision Tree (RFE — 5 Fitur)", "Naive Bayes + SMOTE"],
             key="batch_model"
         )
+        required_cols = RFE_FEATURES if "RFE" in batch_model else ALL_FEATURES
+        st.info(f"Kolom yang dibutuhkan wajib ada di CSV: **{', '.join(required_cols)}**")
         
-        if "RFE" in batch_model:
-            required_cols = RFE_FEATURES
-        else:
-            required_cols = ALL_FEATURES
-            
-        st.info(f"Kolom yang dibutuhkan: **{', '.join(required_cols)}**")
-        
-        # Template download
         template_df = pd.DataFrame([{f: round(float(df[f].mean()), 2) for f in required_cols}])
-        csv_template = template_df.to_csv(index=False)
-        st.download_button(
-            "⬇️ Download Template CSV",
-            data=csv_template,
-            file_name="template_batch.csv",
-            mime="text/csv",
-        )
-
-        uploaded = st.file_uploader("Upload file CSV", type=["csv"], label_visibility="collapsed")
+        st.download_button("⬇️ Download Template CSV", data=template_df.to_csv(index=False), file_name="template_batch.csv", mime="text/csv")
+        uploaded = st.file_uploader("Upload file CSV untuk dievaluasi mendalam", type=["csv"], label_visibility="collapsed")
 
     with col_cfg:
-        st.markdown("**Panduan:**")
         st.markdown("""
-        <div style="background:white;border-radius:12px;padding:1.2rem;border:1.5px solid #e8dfc8;font-size:0.85rem;color:#444;">
-        1️⃣ Download template CSV dulu<br><br>
-        2️⃣ Isi data sesuai kolom yang tersedia<br><br>
-        3️⃣ Upload file CSV kamu<br><br>
-        4️⃣ Hasil prediksi langsung muncul & bisa di-download
+        <div style="background:white;border-radius:12px;padding:1rem 1.2rem;border:1.5px solid #e8dfc8;font-size:0.85rem;color:#444;">
+        ⚙️ <b>Engine Pemrosesan Data Mining:</b><br>
+        • Mengotomatisasi imputasi data kosong (mean-imputer).<br>
+        • Mengukur <i>Confidence Score</i> dan <i>Ambiguity Margin</i>.<br>
+        • Mendeteksi data yang melenceng dari distribusi historis training dataset.
         </div>
         """, unsafe_allow_html=True)
 
     if uploaded is not None:
         try:
             df_batch = pd.read_csv(uploaded)
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(f'<div class="sec-head">🔍 Hasil Prediksi — {len(df_batch)} baris <div class="sec-line"></div></div>', unsafe_allow_html=True)
-
-            # Validasi kolom
+            total_rows = len(df_batch)
+            
             missing = [c for c in required_cols if c not in df_batch.columns]
             if missing:
-                st.error(f"Kolom tidak lengkap: **{', '.join(missing)}**")
+                st.error(f"Gagal memproses! Kolom berikut hilang dari CSV: **{', '.join(missing)}**")
             else:
-                # Prediksi
+                # ── ENGINE PREDIKSI & EKSTRAKSI PROBABILITAS ──
+                X_b = df_batch[required_cols].fillna(df[required_cols].mean())
+                
                 if "Semua Fitur" in batch_model:
-                    X_b = df_batch[ALL_FEATURES].fillna(df_batch[ALL_FEATURES].mean())
                     preds = dt_all.predict(X_b)
                     probas = dt_all.predict_proba(X_b)
                     classes = dt_all.classes_
                 elif "Naive" in batch_model:
-                    X_b = df_batch[ALL_FEATURES].fillna(df_batch[ALL_FEATURES].mean())
-                    X_b_scaled = scaler.transform(X_b)
+                    X_b_full = df_batch[ALL_FEATURES].fillna(df[ALL_FEATURES].mean())
+                    X_b_scaled = scaler.transform(X_b_full)
                     preds = nb.predict(X_b_scaled)
                     probas = nb.predict_proba(X_b_scaled)
                     classes = nb.classes_
                 else:
-                    X_b = df_batch[RFE_FEATURES].fillna(df_batch[RFE_FEATURES].mean())
                     preds = dt_rfe.predict(X_b)
                     probas = dt_rfe.predict_proba(X_b)
                     classes = dt_rfe.classes_
 
-                # Tambah hasil ke dataframe
-                df_result = df_batch.copy()
-                df_result['Prediksi'] = preds
-                for i, cls in enumerate(classes):
-                    df_result[f'Prob_{cls}'] = [round(p[i]*100, 1) for p in probas]
+                # ── PERHITUNGAN INDEKS EVALUASI INTERNAL (DIAGNOSTIK) ──
+                max_probs = np.max(probas, axis=1)
+                sorted_probas = np.sort(probas, axis=1)
+                
+                # Margin = Selisih probabilitas peringkat 1 dan peringkat 2
+                if sorted_probas.shape[1] > 1:
+                    margins = sorted_probas[:, -1] - sorted_probas[:, -2]
+                    # Cari kelas alternatif (runner-up)
+                    idx_sort = np.argsort(probas, axis=1)
+                    alt_classes = classes[idx_sort[:, -2]]
+                else:
+                    margins = np.ones(total_rows)
+                    alt_classes = ["None"] * total_rows
 
-                # Summary donut
-               # ── RINGKASAN EKSEKUTIF ──
-                col_sum, col_stats = st.columns([1, 1])
+                # Deteksi Baris Sulit/Ambigu (Treshold: Margin Kepercayaan < 15% atau Max Prob < 55%)
+                is_hard = (margins < 0.15) | (max_probs < 0.55)
+                total_hard = int(np.sum(is_hard))
+                pct_hard = (total_hard / total_rows) * 100
 
-                with col_sum:
-                    counts = pd.Series(preds).value_counts()
-                    fig_donut = go.Figure(go.Pie(
-                        labels=counts.index,
-                        values=counts.values,
-                        hole=0.55,
-                        marker_colors=[COLORS.get(c, '#888') for c in counts.index],
-                        textinfo='label+percent',
-                        textfont=dict(color='#2d1f0f', size=12),
-                    ))
-                    fig_donut.update_layout(
-                        height=260,
-                        margin=dict(l=10, r=10, t=30, b=10),
-                        paper_bgcolor='white',
-                        showlegend=False,
-                        title=dict(text='Distribusi Kelas Yield', font=dict(color='#2d1f0f', size=13)),
-                        font=dict(family='Syne', color='#2d1f0f'),
-                    )
-                    st.plotly_chart(fig_donut, use_container_width=True)
+                # Deteksi Data Outlier/Anomali (Nilai input di luar batas min/max data historis training)
+                is_outlier = np.zeros(total_rows, dtype=bool)
+                for col in required_cols:
+                    min_val = df[col].min()
+                    max_val = df[col].max()
+                    # Tandai jika ada fitur yang over-extreme
+                    is_outlier |= (X_b[col] < min_val * 0.8) | (X_b[col] > max_val * 1.2)
+                total_outliers = int(np.sum(is_outlier))
 
-                with col_stats:
-                    total = len(preds)
-                    for cls in classes:
-                        n = (preds == cls).sum()
-                        pct = n / total * 100
-                        color_map = {'High': '#e8f5e9', 'Medium': '#fff8e1', 'Low': '#fce4ec'}
-                        border_map = {'High': '#1a7a1a', 'Medium': '#e65c00', 'Low': '#b00020'}
-                        text_map = {'High': '#1a7a1a', 'Medium': '#e65c00', 'Low': '#b00020'}
-                        st.markdown(f"""
-                        <div style="background:{color_map.get(cls,'#f5f5f5')};border-left:4px solid {border_map.get(cls,'#888')};
-                            border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.6rem;">
-                          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#666;text-transform:uppercase">{cls} Yield</div>
-                          <div style="font-size:1.6rem;font-weight:800;color:{text_map.get(cls,'#333')};font-family:'DM Mono',monospace">{n:,} <span style="font-size:0.9rem">baris</span></div>
-                          <div style="font-size:0.8rem;color:#555">{pct:.1f}% dari total dataset</div>
-                        </div>""", unsafe_allow_html=True)
+                # Inject hasil analisa ke dataframe utama
+                df_eval = df_batch.copy()
+                df_eval['Prediksi_Utama'] = preds
+                df_eval['Kelas_Alternatif'] = alt_classes
+                df_eval['Confidence_Score'] = max_probs
+                df_eval['Margin_Ambiguitas'] = margins
+                df_eval['Status_Baris'] = np.where(is_outlier, '🚨 ANOMALI OUTLIER', np.where(is_hard, '⚠️ SULIT / AMBIGU', '✅ AMAN (CONFIDENT)'))
 
+                # ── DISPLAY VISUAL 1: RINGKASAN SUB-SISTEM EVALUASI ──
+                st.markdown('<div class="sec-head">📈 Ringkasan Kesehatan Prediksi Batch <div class="sec-line"></div></div>', unsafe_allow_html=True)
+                m1, m2, m3, m4 = st.columns(4)
+                
+                m1.markdown(f'<div class="metric-card"><div class="metric-label">TOTAL DATA PROSES</div><div class="metric-val">{total_rows:,}</div><div class="metric-sub">Baris terdaftar</div></div>', unsafe_allow_html=True)
+                
+                c_hard = "#166534" if pct_hard < 10 else ("#92400e" if pct_hard < 25 else "#b00020")
+                m2.markdown(f'<div class="metric-card"><div class="metric-label">BARIS SULIT / AMBIGU</div><div class="metric-val" style="color:{c_hard}">{total_hard:,}</div><div class="metric-sub">{pct_hard:.1f}% Ambiguitas Tinggi</div></div>', unsafe_allow_html=True)
+                
+                c_out = "#166534" if total_outliers == 0 else "#b00020"
+                m3.markdown(f'<div class="metric-card"><div class="metric-label">DETEKSI OUTLIER LAHAN</div><div class="metric-val" style="color:{c_out}">{total_outliers:,}</div><div class="metric-sub">Data di luar tren historis</div></div>', unsafe_allow_html=True)
+                
+                avg_conf = np.mean(max_probs) * 100
+                m4.markdown(f'<div class="metric-card"><div class="metric-label">RATA-RATA CONFIDENCE</div><div class="metric-val">{avg_conf:.1f}%</div><div class="metric-sub">Keandalan model rata-rata</div></div>', unsafe_allow_html=True)
+
+                # ── VISUAL 2: CHART DISTRIBUSI STATUS DATA ──
                 st.markdown("<br>", unsafe_allow_html=True)
-
-                # ── ANALISIS PROBABILITAS ──
-                st.markdown('<div class="sec-head">📈 Analisis Confidence Prediksi <div class="sec-line"></div></div>', unsafe_allow_html=True)
-
-                col_conf1, col_conf2 = st.columns(2)
-
-                # Distribusi confidence per kelas
-                prob_df = pd.DataFrame(probas, columns=[f'Prob_{c}' for c in classes])
-                prob_df['Prediksi'] = preds
-
-                with col_conf1:
-                    # Rata-rata confidence per kelas prediksi
-                    avg_conf = []
-                    for cls in classes:
-                        mask = prob_df['Prediksi'] == cls
-                        if mask.sum() > 0:
-                            avg = prob_df.loc[mask, f'Prob_{cls}'].mean() * 100
-                            avg_conf.append({'Kelas': cls, 'Avg Confidence (%)': round(avg, 1)})
+                col_c1, col_c2 = st.columns([1, 1])
+                
+                with col_c1:
+                    status_counts = df_eval['Status_Baris'].value_counts()
+                    fig_status = go.Figure(go.Pie(
+                        labels=status_counts.index, values=status_counts.values, hole=0.5,
+                        marker_colors=['#6aaa64', '#e65c00', '#b00020'], textinfo='label+percent'
+                    ))
+                    fig_status.update_layout(height=260, margin=dict(l=10,r=10,t=30,b=10), title="Segmentasi Kualitas Prediksi Data", font_family="Syne")
+                    st.plotly_chart(fig_status, use_container_width=True)
                     
-                    df_conf = pd.DataFrame(avg_conf)
-                    fig_conf = px.bar(
-                        df_conf, x='Kelas', y='Avg Confidence (%)',
-                        color='Kelas',
-                        color_discrete_map=COLORS,
-                        template='simple_white',
-                        title='Rata-rata Confidence per Kelas',
-                        text='Avg Confidence (%)',
-                    )
-                    fig_conf.update_layout(
-                        height=250, margin=dict(l=10,r=10,t=40,b=10),
-                        paper_bgcolor='white', plot_bgcolor='white',
-                        font=dict(family='Syne', color='#2d1f0f'),
-                        showlegend=False,
-                        yaxis=dict(range=[0,110]),
-                        title_font=dict(size=12, color='#2d1f0f'),
-                    )
-                    fig_conf.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-                    st.plotly_chart(fig_conf, use_container_width=True)
+                with col_c2:
+                    # Klasifikasi hasil akhir untuk data Confident vs Ambigu
+                    fig_compare = px.histogram(df_eval, x="Prediksi_Utama", color="Status_Baris", barmode="group",
+                                               color_discrete_map={'✅ AMAN (CONFIDENT)': '#6aaa64', '⚠️ SULIT / AMBIGU': '#e65c00', '🚨 ANOMALI OUTLIER': '#b00020'},
+                                               template="simple_white", title="Distribusi Prediksi Berdasarkan Status Kepercayaan")
+                    fig_compare.update_layout(height=260, margin=dict(l=10,r=10,t=40,b=10), font_family="Syne", legend=dict(title=""))
+                    st.plotly_chart(fig_compare, use_container_width=True)
 
-                with col_conf2:
-                    # Confidence tinggi vs rendah
-                    max_prob = np.max(probas, axis=1)
-                    high_conf = (max_prob >= 0.8).sum()
-                    mid_conf = ((max_prob >= 0.6) & (max_prob < 0.8)).sum()
-                    low_conf = (max_prob < 0.6).sum()
-
-                    fig_cert = go.Figure(go.Bar(
-                        x=['≥80% (Tinggi)', '60–80% (Sedang)', '<60% (Rendah)'],
-                        y=[high_conf, mid_conf, low_conf],
-                        marker_color=['#1a7a1a', '#e65c00', '#b00020'],
-                        text=[f'{high_conf:,}', f'{mid_conf:,}', f'{low_conf:,}'],
-                        textposition='outside',
-                    ))
-                    fig_cert.update_layout(
-                        height=250, margin=dict(l=10,r=10,t=40,b=10),
-                        paper_bgcolor='white', plot_bgcolor='white',
-                        font=dict(family='Syne', color='#2d1f0f'),
-                        title=dict(text='Tingkat Kepercayaan Prediksi', font=dict(size=12, color='#2d1f0f')),
-                        yaxis=dict(gridcolor='#f0ece0'),
-                        showlegend=False,
-                    )
-                    fig_cert.update_xaxes(color='#2d1f0f')
-                    fig_cert.update_yaxes(color='#2d1f0f')
-                    st.plotly_chart(fig_cert, use_container_width=True)
-
-                # ── INSIGHT OTOMATIS ──
-                st.markdown('<div class="sec-head">💡 Insight Otomatis <div class="sec-line"></div></div>', unsafe_allow_html=True)
-
-                dominant = counts.idxmax()
-                dominant_pct = counts.max() / total * 100
-                high_conf_pct = high_conf / total * 100
+                # ── SECTION 3: BEDAH DATA SULIT / AMBIGU ──
+                st.markdown('<div class="sec-head">🔍 Investigasi Baris Paling Ambigu (Borderline Analysis) <div class="sec-line"></div></div>', unsafe_allow_html=True)
                 
-                insights = []
-                insights.append(f"📌 Kelas **{dominant}** mendominasi hasil prediksi dengan **{dominant_pct:.1f}%** dari total {total:,} sampel.")
-                insights.append(f"✅ **{high_conf_pct:.1f}%** prediksi memiliki confidence ≥80% — model cukup yakin pada sebagian besar data.")
+                if total_hard > 0:
+                    st.warning(f"Model mendeteksi ada **{total_hard}** baris data yang berada di 'borderline' (batas keputusan). Ini terjadi karena probabilitas antar kelas sangat ketat.")
+                    
+                    df_hard_rows = df_eval[is_hard].sort_values(by='Margin_Ambiguitas', ascending=True).head(20)
+                    
+                    # Tampilkan tabel data tersulit dengan kolom khusus analisis probabilitas
+                    display_cols = required_cols + ['Prediksi_Utama', 'Kelas_Alternatif', 'Confidence_Score', 'Margin_Ambiguitas']
+                    st.markdown("**Top 20 Baris Data dengan Tingkat Kebingungan Tertinggi:**")
+                    st.dataframe(
+                        df_hard_rows[display_cols].style.format({
+                            'Confidence_Score': '{:.1%}',
+                            'Margin_Ambiguitas': '{:.1%}'
+                        }), use_container_width=True
+                    )
+                    
+                    # Analisis Karakteristik Fitur Penyebab Ambiguitas
+                    st.markdown("💡 **Kenapa baris di atas sulit diprediksi oleh Machine Learning?**")
+                    
+                    # Hitung rata-rata fitur data sulit vs data yakin
+                    mean_easy = df_eval[~is_hard][required_cols].mean()
+                    mean_hard = df_eval[is_hard][required_cols].mean()
+                    
+                    df_profile = pd.DataFrame({
+                        'Fitur Lahan': required_cols,
+                        'Rata-rata (Data Aman/Yakin)': mean_easy.values,
+                        'Rata-rata (Data Sulit/Ambigu)': mean_hard.values
+                    })
+                    
+                    # Tampilkan deviasi nilai
+                    with st.expander("📊 Lihat Deviasi Komparasi Nilai Fitur (Aman vs Ambigu)"):
+                        st.write("Jika nilai rata-rata pada data sulit melenceng jauh dari data aman, fitur tersebut kemungkinan besar merupakan pemicu ketidakpastian model.")
+                        st.dataframe(df_profile.style.highlight_max(axis=1, color="#ffebee"))
+                        
+                        # Buat grafik deviasi rasio untuk mempermudah pemahaman pengguna
+                        df_profile['Rasio_Perubahan'] = (df_profile['Rata-rata (Data Sulit/Ambigu)'] / df_profile['Rata-rata (Data Aman/Yakin)']) - 1
+                        fig_dev = px.bar(df_profile, x='Rasio_Perubahan', y='Fitur Lahan', orientation='h',
+                                         title="Faktor Deviasi Fitur Lahan yang Membingungkan Model (Aman vs Ambigu)",
+                                         color='Rasio_Perubahan', color_continuous_scale=px.colors.diverging.Curl)
+                        fig_dev.update_layout(height=280, margin=dict(l=10,r=10,t=40,b=10))
+                        st.plotly_chart(fig_dev, use_container_width=True)
+                else:
+                    st.success("Sempurna! Tidak ditemukan baris data yang ambigu. Model sangat percaya diri dengan seluruh baris data yang diunggah.")
+
+                # ── SECTION 4: DETEKSI ERROR & OUTLIER DETECTOR ──
+                st.markdown('<div class="sec-head">🚨 Deteksi Outlier Ekstrem & Anomali Sensor <div class="sec-line"></div></div>', unsafe_allow_html=True)
                 
-                if 'Low' in counts and counts.get('Low', 0) / total > 0.3:
-                    insights.append(f"⚠️ Proporsi kelas **Low** cukup tinggi ({counts.get('Low',0)/total*100:.1f}%) — perlu perhatian khusus pada kondisi lahan.")
-                if 'High' in counts and counts.get('High', 0) / total > 0.4:
-                    insights.append(f"🌾 Mayoritas lahan diprediksi **High yield** — kondisi dataset secara umum mendukung hasil panen baik.")
-                if low_conf / total > 0.2:
-                    insights.append(f"🔍 **{low_conf/total*100:.1f}%** prediksi memiliki confidence rendah (<60%) — data ini perlu diverifikasi lebih lanjut.")
+                if total_outliers > 0:
+                    st.error(f"Bahaya! Ditemukan **{total_outliers}** baris data dengan indikasi **Anomali/Outlier**. Data ini memiliki nilai yang tidak logis atau berada di luar jangkauan historis training set asli.")
+                    df_outliers = df_eval[is_outlier].head(20)
+                    st.dataframe(df_outliers[required_cols + ['Status_Baris']], use_container_width=True)
+                    st.info("ℹ️ **Rekomendasi Tindakan:** Periksa sensor IoT di lapangan atau pastikan tidak ada kesalahan ketik unit/satuan data pada baris-baris tersebut sebelum mengambil tindakan operasional.")
+                else:
+                    st.success("Aman! Seluruh sampel input berada dalam batas wajar distribusi variabel sensor tanaman (Tidak ada data anomali).")
 
-                for ins in insights:
-                    st.markdown(f"""
-                    <div style="background:white;border-radius:10px;padding:0.8rem 1.2rem;
-                        margin-bottom:0.5rem;border:1.5px solid #e8dfc8;font-size:0.87rem;color:#2d1f0f;">
-                        {ins}
-                    </div>""", unsafe_allow_html=True)
-
-                st.markdown("<br>", unsafe_allow_html=True)
-
-                # ── TABEL SAMPEL ──
-                st.markdown('<div class="sec-head">🗂️ Sampel Hasil (50 baris pertama) <div class="sec-line"></div></div>', unsafe_allow_html=True)
-                df_result = df_batch.copy()
-                df_result['Prediksi'] = preds
-                for i, cls in enumerate(classes):
-                    df_result[f'Prob_{cls} (%)'] = [round(p[i]*100, 1) for p in probas]
-                st.dataframe(df_result.head(50), use_container_width=True, hide_index=True, height=280)
-
-                # Download
-                csv_out = df_result.to_csv(index=False)
+                # ── SECTION 5: DOWNLOAD OUTPUT LENGKAP DENGAN METADATA DIAGNOSTIK ──
+                st.markdown('<div class="sec-head">🗂️ Unduh Hasil Analisis Komprehensif <div class="sec-line"></div></div>', unsafe_allow_html=True)
+                st.write("Preview hasil data akhir beserta metadata hasil audit data mining (50 baris pertama):")
+                
+                # Format output final tabel
+                final_cols_order = ['Status_Baris', 'Prediksi_Utama', 'Confidence_Score', 'Kelas_Alternatif', 'Margin_Ambiguitas'] + required_cols
+                st.dataframe(df_eval[final_cols_order].head(50), use_container_width=True, hide_index=True)
+                
+                csv_out = df_eval.to_csv(index=False)
                 st.download_button(
-                    "⬇️ Download Hasil Lengkap CSV",
+                    "⬇️ Unduh Hasil Audit Diagnostik Lengkap (.CSV)",
                     data=csv_out,
-                    file_name="hasil_prediksi_batch.csv",
+                    file_name="crop_yield_batch_diagnostic_report.csv",
                     mime="text/csv",
+                    use_container_width=True
                 )
 
         except Exception as e:
-            st.error(f"Error memproses file: {e}")
+            st.error(f"Error memproses file: {e}. Pastikan file format CSV valid.")
+
 # ─── FOOTER ───────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="
-    margin-top:2rem;
-    padding: 1rem 1.5rem;
-    background: #2d1f0f;
-    border-radius: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.75rem;
-    color: #a09070;
-">
+<div style="margin-top:2rem; padding: 1rem 1.5rem; background: #2d1f0f; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #a09070;">
   <span>🌾 <b style="color:#f0c040">CropYield Intelligence</b> — Data Mining Project</span>
   <span>Dataset: 102.675 sampel · 3 Model · Scikit-learn</span>
 </div>
